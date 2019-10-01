@@ -3,10 +3,15 @@ spring.cloud.gateway.rsocket.client:
   service-name: ping
   tags:
     INSTANCE_NAME: ping1
+  forwarding:
+    pong-rc:
+      service_name: pong
   broker:
     host: localhost
     port: 7002
 
+server:
+  port: 0
 #debug: true
 ---
 spring:
@@ -19,3 +24,11 @@ spring.cloud.gateway.rsocket.client:
 
 ping:
   request-type: request_response
+
+---
+spring:
+  profiles: gateway2
+  cloud.gateway.rsocket.client:
+    broker:
+      host: localhost
+      port: 7003

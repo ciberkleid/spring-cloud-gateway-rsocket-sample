@@ -7,14 +7,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cloud.gateway.rsocket.client.BrokerClient;
 import org.springframework.context.ApplicationListener;
+import org.springframework.context.PayloadApplicationEvent;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.stereotype.Service;
 
 @Service
-public class PingService implements ApplicationListener<ApplicationReadyEvent> {
+public class PingService implements ApplicationListener<PayloadApplicationEvent<RSocketRequester>> {
 
 	private static final Logger logger = LoggerFactory.getLogger(PingService.class);
 
@@ -29,11 +29,11 @@ public class PingService implements ApplicationListener<ApplicationReadyEvent> {
 		this.properties = properties;
 	}
 
-
 	@Override
-	public void onApplicationEvent(ApplicationReadyEvent event) {
+	public void onApplicationEvent(PayloadApplicationEvent<RSocketRequester> event) {
 		logger.info("Starting Ping" + client.getProperties().getRouteId() + " request type: " + properties.getRequestType());
-		RSocketRequester requester = client.connect().retry(5).block();
+		//RSocketRequester requester = client.connect().retry(5).block();
+		RSocketRequester requester = event.getPayload();
 
 		switch (properties.getRequestType()) {
 			case REQUEST_RESPONSE:
@@ -43,18 +43,21 @@ public class PingService implements ApplicationListener<ApplicationReadyEvent> {
 								.data("ping" + i)
 								.retrieveMono(String.class)
 								.doOnNext(this::logPongs))
-						.then().block();
+						//.then().block();
+						.subscribe();
 				break;
 
 			case REQUEST_CHANNEL:
 				requester.route("pong-rc")
-						.metadata(client.forwarding("pong"))
+						// metadata not needed. Auto added with gateway rsocket client via properties
+						//.metadata(client.forwarding(builder -> builder.serviceName("pong").with("multicast", "true")))
 						.data(Flux.interval(Duration.ofSeconds(1)).map(this::getPayload)
 								.onBackpressureDrop(payload -> logger
 										.info("Backpressure applied, dropping payload " + payload)))
 						.retrieveFlux(String.class)
 						.doOnNext(this::logPongs)
-						.then().block();
+						//.then().block();
+						.subscribe();
 				break;
 
 			case ACTUATOR:
